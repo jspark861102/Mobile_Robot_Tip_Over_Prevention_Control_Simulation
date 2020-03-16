@@ -64,12 +64,18 @@ for i = 1 : length(t)-1
     x_ref(i+1) = x_ref(i) + dx_ref(i) * dt;
     y_ref(i+1) = y_ref(i) + dy_ref(i) * dt;
 end
-ddx_ref(1) = 0;
-ddy_ref(1) = 0;
-ddtheta_ref(1) = 0;
-ddx_ref(2:length(dx_ref)) = (dx_ref(2:end)-dx_ref(1:end-1))/T;
-ddy_ref(2:length(dx_ref)) = (dy_ref(2:end)-dy_ref(1:end-1))/T;
-ddtheta_ref(2:length(dx_ref)) = (w_ref(2:end)-w_ref(1:end-1))/T;
+ddx_ref(1:length(dx_ref)-1) = (dx_ref(2:end)-dx_ref(1:end-1))/T;
+ddy_ref(1:length(dx_ref)-1) = (dy_ref(2:end)-dy_ref(1:end-1))/T;
+ddtheta_ref(1:length(dx_ref)-1) = (w_ref(2:end)-w_ref(1:end-1))/T;
+ddx_ref(length(dx_ref)) = 0;
+ddy_ref(length(dx_ref)) = 0;
+ddtheta_ref(length(dx_ref)) = 0;
+% ddx_ref(1) = 0;
+% ddy_ref(1) = 0;
+% ddtheta_ref(1) = 0;
+% ddx_ref(2:length(dx_ref)) = (dx_ref(2:end)-dx_ref(1:end-1))/T;
+% ddy_ref(2:length(dx_ref)) = (dy_ref(2:end)-dy_ref(1:end-1))/T;
+% ddtheta_ref(2:length(dx_ref)) = (w_ref(2:end)-w_ref(1:end-1))/T;
 
 %define state and input reference
 xr = [x_ref; y_ref; theta_ref];
@@ -80,19 +86,19 @@ ddxr = [ddx_ref; ddy_ref; ddtheta_ref];
 %% State space equation
 for i = 1 : length(t)
     A(:,:,i) = eye(3) + [0 0 -v_ref(i)*sin(theta_ref(i))*T;
-                     0 0  v_ref(i)*cos(theta_ref(i))*T;
-                     0 0  0];
+                         0 0  v_ref(i)*cos(theta_ref(i))*T;
+                         0 0  0];
     B(:,:,i) = [cos(theta_ref(i))*T 0;
                 sin(theta_ref(i))*T 0;
                 0                   T];    
 end
 
 %% MPC parameters
-N=15; % Batch size
+N=20; % Batch size
 n = size(A,1);
 m = size(B,2);
 Q = 10*eye(n);
-R = 10*eye(m);
+R = 1*eye(m);
 
 %% initial state
 x0 = [0 0 0]'; %[x y theta]
@@ -117,13 +123,12 @@ for k = 1 : length(t)-N
     [Sx,Su,Qb,Rb] = Batch_formulation(A, B, N, Q, R, cur_state);
 
     H = Su'*Qb*Su + Rb;
-%     size(H)
-%     rank(H)
     F = Sx'*Qb*Su;
     Y = Sx'*Qb*Sx;
 
     %% constraints
     [G0,E0,w0] = QP_constraints_ZMP(cur_state, A, B, h2, T, N, D, L, ddxr);
+%     [G0,E0,w0] = QP_constraints_basic(cur_state, A, B, h2, T, N, D, L, ddxr);
     
     %% QP    
     %make u_tilt
@@ -132,23 +137,29 @@ for k = 1 : length(t)-N
 %     u_tilt = -inv(H)*F'*x_tilt_current;
     
     u_tilt_set(:,k) = u_tilt;
-    x_tilt_set(:,k) = x_tilt_current;
+    x_tilt_set(:,k) = x_tilt_current;       
     
     %make real input to simulate with real plant
     u(:,k) = u_tilt(1:m) + ur(:,k);
     
+    %x_state
+    x_state(:,k+1) = x_state(:,k) + dx_state(:,k)*T;
+    
     %real plant simulation
     dx_state(:,k+1) = [u(1,k)*cos(x_state(3,k)); u(1,k)*sin(x_state(3,k)); u(2,k)];       
-    x_state(:,k+1) = x_state(:,k) + dx_state(:,k+1)*T;
+    
+    %x_tilt for next step qp
     x_tilt_current = x_state(:,k+1) - xr(:,k+1);
     
     %zmp    
     zmp(:,k) = -h2/g*ddx_state(:,k);
+    zmp_tilt(:,k) = -h2/g*(ddx_state(:,k)- ddxr(:,k));
     ddx_state(:,k+1) = (dx_state(:,k+1) - dx_state(:,k))/T;    
     
 end
 
 %% plot
+%trajectory
 figure;
 plot(xr(1,:),xr(2,:),'r','LineWidth',2)
 hold on
@@ -157,8 +168,9 @@ title('trajectory')
 legend('reference','real')
 grid on
 
+%state & input
 figure;
-subplot(2,3,1)
+subplot(2,2,1)
 plot(t,v_ref,'b','LineWidth',2)
 hold on
 plot(t(1:end-N),u(1,:),'--k')
@@ -168,28 +180,7 @@ legend('v ref','v real','w ref','w real')
 title('input')
 grid on
 
-subplot(2,3,2)
-% figure;
-plot(t(1:end-N),zmp(1,:),'b')
-hold on
-% plot([t(1) t(end-N)], [D/2 D/2],'k')
-% plot([t(1) t(end-N)], [-D/2 -D/2],'k')
-plot(t(1:end), -(h2/g*ddxr(1,:)+D/2),'k')
-plot(t(1:end), -(h2/g*ddxr(1,:)-D/2),'k')
-title('zmp x')
-grid on
-
-subplot(2,3,3)
-plot(t(1:end-N),zmp(2,:),'b')
-hold on
-% plot([t(1) t(end-N)], [L/2 L/2],'k')
-% plot([t(1) t(end-N)], [-L/2 -L/2],'k')
-plot(t(1:end), -(h2/g*ddxr(2,:)+L/2),'k')
-plot(t(1:end), -(h2/g*ddxr(2,:)-L/2),'k')
-title('zmp y')
-grid on
-
-subplot(2,3,4)
+subplot(2,2,2)
 plot(t(1:end-N+1),dx_state(1,:),'b')
 hold on
 plot(t(1:end-N+1),dx_state(2,:),'r')
@@ -198,7 +189,7 @@ title('dstate')
 legend('x','y','theta')
 grid on
 
-subplot(2,3,5)
+subplot(2,2,3)
 plot(t(1:end-N),x_tilt_set(1,:),'b')
 hold on
 plot(t(1:end-N),x_tilt_set(2,:),'r')
@@ -207,12 +198,47 @@ title('x tilt')
 legend('x','y','theta')
 grid on
 
-subplot(2,3,6)
+subplot(2,2,4)
 plot(t(1:end-N),u_tilt_set(1,:),'b')
 hold on
 plot(t(1:end-N),u_tilt_set(2,:),'r')
 title('u tilt')
 legend('v','w')
+grid on
+
+%zmp
+figure;
+subplot(2,2,1)
+% figure;
+plot(t(1:end-N),zmp(1,:),'b')
+hold on
+plot([t(1) t(end-N)], [D/2 D/2],'k')
+plot([t(1) t(end-N)], [-D/2 -D/2],'k')
+title('zmp x')
+grid on
+
+subplot(2,2,2)
+plot(t(1:end-N),zmp(2,:),'b')
+hold on
+plot([t(1) t(end-N)], [L/2 L/2],'k')
+plot([t(1) t(end-N)], [-L/2 -L/2],'k')
+title('zmp y')
+grid on
+
+subplot(2,2,3)
+plot(t(1:end-N),zmp_tilt(1,:),'b')
+hold on
+plot(t(1:end), (h2/g*ddxr(1,:)+D/2),'k')
+plot(t(1:end), (h2/g*ddxr(1,:)-D/2),'k')
+title('zmp tilt x')
+grid on
+
+subplot(2,2,4)
+plot(t(1:end-N),zmp_tilt(2,:),'b')
+hold on
+plot(t(1:end), (h2/g*ddxr(2,:)+L/2),'k')
+plot(t(1:end), (h2/g*ddxr(2,:)-L/2),'k')
+title('zmp tilt y')
 grid on
 
 % figure;plot((dx_state(1,2:end)-dx_state(1,1:end-1))/T)
