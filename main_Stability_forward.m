@@ -34,7 +34,7 @@ b = 0.05;
 I = 1/12*m1*(D^2 + L^2) + m2*(a^2+b^2); %m2�� lumped mass�� ����
 
 %% reference
-v_max = 0.3%0.85;%1;
+v_max = 0.3; %0.85;%1;
 road_width = 0.6;%2;
 circle_r = (road_width - L*cos(pi/4)) / (1-cos(pi/4));
 
@@ -45,7 +45,7 @@ num = 20;
 v_ref = v_max*[-cos(pi .* [0:1/num:1])/2+0.5 1*ones(1,length(t) - 2*(num+1)) +cos(pi .* [0:1/num:1])/2+0.5];
 w_ref = 1*(v_max/circle_r)*[-cos(pi .* [0:1/num:1])/2+0.5 1*ones(1,length(t) -2*(num+1)) +cos(pi .* [0:1/num:1])/2+0.5];
 
-t = 0 : dt : pi *circle_r/(2*v_max) +0.5 +1;
+t = 0 : dt : pi *circle_r/(2*v_max) +0.5 +1; %to add zeros in front and back
 
 v_ref = [zeros(1,50) v_ref zeros(1,50)];
 w_ref = [zeros(1,50) w_ref zeros(1,50)];
@@ -53,7 +53,7 @@ w_ref = [zeros(1,50) w_ref zeros(1,50)];
 %make state reference
 theta_ref(1) = 0;
 for i = 1 : length(t)-1   
-    theta_ref(i+1) = theta_ref(i) + w_ref(i) * dt;    
+    theta_ref(i+1) = theta_ref(i) + w_ref(i) * dt; %forward integration    
 end
 
 dx_ref = v_ref.*cos(theta_ref);
@@ -61,21 +61,21 @@ dy_ref = v_ref.*sin(theta_ref);
 x_ref(1) = 0;
 y_ref(1) = 0;
 for i = 1 : length(t)-1
-    x_ref(i+1) = x_ref(i) + dx_ref(i) * dt;
-    y_ref(i+1) = y_ref(i) + dy_ref(i) * dt;
+    x_ref(i+1) = x_ref(i) + dx_ref(i) * dt; %forward integration
+    y_ref(i+1) = y_ref(i) + dy_ref(i) * dt; %forward integration
 end
-ddx_ref(1:length(dx_ref)-1) = (dx_ref(2:end)-dx_ref(1:end-1))/T;
-ddy_ref(1:length(dx_ref)-1) = (dy_ref(2:end)-dy_ref(1:end-1))/T;
-ddtheta_ref(1:length(dx_ref)-1) = (w_ref(2:end)-w_ref(1:end-1))/T;
+ddx_ref(1:length(dx_ref)-1) = (dx_ref(2:end)-dx_ref(1:end-1))/T;  %forward derivative
+ddy_ref(1:length(dx_ref)-1) = (dy_ref(2:end)-dy_ref(1:end-1))/T;  %forward derivative
+ddtheta_ref(1:length(dx_ref)-1) = (w_ref(2:end)-w_ref(1:end-1))/T;%forward derivative
 ddx_ref(length(dx_ref)) = 0;
 ddy_ref(length(dx_ref)) = 0;
 ddtheta_ref(length(dx_ref)) = 0;
 % ddx_ref(1) = 0;
 % ddy_ref(1) = 0;
 % ddtheta_ref(1) = 0;
-% ddx_ref(2:length(dx_ref)) = (dx_ref(2:end)-dx_ref(1:end-1))/T;
-% ddy_ref(2:length(dx_ref)) = (dy_ref(2:end)-dy_ref(1:end-1))/T;
-% ddtheta_ref(2:length(dx_ref)) = (w_ref(2:end)-w_ref(1:end-1))/T;
+% ddx_ref(2:length(dx_ref)) = (dx_ref(2:end)-dx_ref(1:end-1))/T;  %backward derivative
+% ddy_ref(2:length(dx_ref)) = (dy_ref(2:end)-dy_ref(1:end-1))/T;  %backward derivative
+% ddtheta_ref(2:length(dx_ref)) = (w_ref(2:end)-w_ref(1:end-1))/T;%backward derivative
 
 %define state and input reference
 xr = [x_ref; y_ref; theta_ref];
@@ -93,12 +93,27 @@ for i = 1 : length(t)
                 0                   T];    
 end
 
+% x(:,1) = xr(:,1);
+% xx(:,1) = xr(:,1);
+% u = [sin(2*pi*t);2*sin(2*pi*t)];
+% for i = 1 : length(t)
+%     x(:,i+1) = A(:,:,i)*x(:,i) + B(:,:,i)*u(:,i);
+%     dxx(:,i) = [u(1,i)*cos(xx(3,i)); u(1,i)*sin(xx(3,i)); u(2,i)];
+%     xx(:,i+1) = xx(:,i) + dxx(:,i)*T;
+% end
+% figure;plot(x(2,:),'b')
+% hold on
+% plot(xx(2,:),'--r')
+
 %% MPC parameters
-N=20; % Batch size
+N=30; % Batch size
 n = size(A,1);
 m = size(B,2);
 Q = 10*eye(n);
 R = 1*eye(m);
+
+%1:central, 2:backward, 3:forward
+zmp_switch = 1;
 
 %% initial state
 x0 = [0 0 0]'; %[x y theta]
@@ -115,8 +130,8 @@ options = optimoptions('quadprog',...
 
 x_tilt_current = x0_tilt; 
 x_state(:,1) = x0;
-dx_state(:,1) = [0;0;0];
-ddx_state(:,1) = [0;0;0];
+% dx_state(:,1) = [0;0;0];
+% ddx_state(:,1) = [0;0;0];
 for k = 1 : length(t)-N    
     %% MPC formulation
     cur_state = k;
@@ -127,36 +142,61 @@ for k = 1 : length(t)-N
     Y = Sx'*Qb*Sx;
 
     %% constraints
-    [G0,E0,w0] = QP_constraints_ZMP(cur_state, A, B, h2, T, N, D, L, ddxr);
+    [G0,E0,w0] = QP_constraints_ZMP(cur_state, A, B, h2, T, N, D, L, ddxr, zmp_switch);
 %     [G0,E0,w0] = QP_constraints_basic(cur_state, A, B, h2, T, N, D, L, ddxr);
-    
-    %% QP    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     %% QP            
+%     %make u_tilt
+%     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,G0,w0+E0*x_tilt_current,[],[],[],[],[],options);  
+% %     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,zeros(size(G0)),zeros(size(w0+E0*x_tilt_current)),[],[],[],[],[],options);  
+% %     u_tilt = -inv(H)*F'*x_tilt_current;
+%     
+%     u_tilt_set(:,k) = u_tilt;
+%     x_tilt_set(:,k) = x_tilt_current;       
+%     
+%     %make real input to simulate with real plant
+%     u(:,k) = u_tilt(1:m) + ur(:,k);
+%     
+%     %real plant simulation
+%     dx_state(:,k) = [u(1,k)*cos(x_state(3,k)); u(1,k)*sin(x_state(3,k)); u(2,k)];  %forward derivative     
+%        
+%     %x_state
+%     x_state(:,k+1) = x_state(:,k) + dx_state(:,k)*T;    %forward derivative
+%     
+%     %x_tilt for next step qp
+%     x_tilt_current = x_state(:,k+1) - xr(:,k+1);
+%     
+% %     %zmp        
+% %     ddx_state(:,k) = (dx_state(:,k+1) - dx_state(:,k))/T;    
+% %     zmp(:,k) = -h2/g*ddx_state(:,k);
+% %     zmp_tilt(:,k) = -h2/g*(ddx_state(:,k)- ddxr(:,k));
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% QP            
     %make u_tilt
     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,G0,w0+E0*x_tilt_current,[],[],[],[],[],options);  
 %     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,zeros(size(G0)),zeros(size(w0+E0*x_tilt_current)),[],[],[],[],[],options);  
 %     u_tilt = -inv(H)*F'*x_tilt_current;
     
     u_tilt_set(:,k) = u_tilt;
-    x_tilt_set(:,k) = x_tilt_current;       
+    x_tilt_set(:,k) = x_tilt_current;     
     
-    %make real input to simulate with real plant
+    x_state(:,k) = x_tilt_current + xr(:,k);
     u(:,k) = u_tilt(1:m) + ur(:,k);
     
-    %x_state
-    x_state(:,k+1) = x_state(:,k) + dx_state(:,k)*T;
+    x_tilt_current_next = A(:,:,k)*x_tilt_current + B(:,:,k)*u_tilt(1:m);   
     
-    %real plant simulation
-    dx_state(:,k+1) = [u(1,k)*cos(x_state(3,k)); u(1,k)*sin(x_state(3,k)); u(2,k)];       
+    dx_state(:,k) = ((x_tilt_current_next+xr(:,k+1)) - x_state(:,k))/T;
     
-    %x_tilt for next step qp
-    x_tilt_current = x_state(:,k+1) - xr(:,k+1);
-    
-    %zmp    
-    zmp(:,k) = -h2/g*ddx_state(:,k);
-    zmp_tilt(:,k) = -h2/g*(ddx_state(:,k)- ddxr(:,k));
-    ddx_state(:,k+1) = (dx_state(:,k+1) - dx_state(:,k))/T;    
+    x_tilt_current = x_tilt_current_next;
     
 end
+%zmp        
+ddx_state(:,1:length(dx_state)-1) = (dx_state(:,2:end) - dx_state(:,1:end-1))/T;    %forward derivative
+ddx_state(:,length(dx_state)) = 0;
+zmp = -h2/g*ddx_state;
+zmp_tilt = -h2/g*(ddx_state - ddxr(:,1:length(ddx_state)));
 
 %% plot
 %trajectory
@@ -181,10 +221,10 @@ title('input')
 grid on
 
 subplot(2,2,2)
-plot(t(1:end-N+1),dx_state(1,:),'b')
+plot(t(1:end-N),dx_state(1,:),'b')
 hold on
-plot(t(1:end-N+1),dx_state(2,:),'r')
-plot(t(1:end-N+1),dx_state(3,:),'k')
+plot(t(1:end-N),dx_state(2,:),'r')
+plot(t(1:end-N),dx_state(3,:),'k')
 title('dstate')
 legend('x','y','theta')
 grid on
@@ -228,17 +268,15 @@ grid on
 subplot(2,2,3)
 plot(t(1:end-N),zmp_tilt(1,:),'b')
 hold on
-plot(t(1:end), (h2/g*ddxr(1,:)+D/2),'k')
-plot(t(1:end), (h2/g*ddxr(1,:)-D/2),'k')
+plot(t(1:end), (h2/g*ddxr(1,1:end)+D/2),'k')
+plot(t(1:end), (h2/g*ddxr(1,1:end)-D/2),'k')
 title('zmp tilt x')
 grid on
 
 subplot(2,2,4)
 plot(t(1:end-N),zmp_tilt(2,:),'b')
 hold on
-plot(t(1:end), (h2/g*ddxr(2,:)+L/2),'k')
-plot(t(1:end), (h2/g*ddxr(2,:)-L/2),'k')
+plot(t(1:end), (h2/g*ddxr(2,1:end)+L/2),'k')
+plot(t(1:end), (h2/g*ddxr(2,1:end)-L/2),'k')
 title('zmp tilt y')
 grid on
-
-% figure;plot((dx_state(1,2:end)-dx_state(1,1:end-1))/T)
