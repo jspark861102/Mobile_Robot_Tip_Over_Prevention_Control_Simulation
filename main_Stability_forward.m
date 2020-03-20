@@ -4,7 +4,7 @@ clc
 
 T = 0.01; dt = T;
 %% design parameters
-N=30; % Batch size
+N=15; % Batch size
 Qs = 10;
 Rs = 1;
 
@@ -126,9 +126,11 @@ for k = 1 : length(t)-N
     Y = Sx'*Qb*Sx;
 
     %% constraints
+%     [G0,E0,w0] = QP_constraints_ZMPm(cur_state, A, B, h2, T, N, D, L, xr, ddxr, zmp_switch);
     [G0,E0,w0] = QP_constraints_ZMP(cur_state, A, B, h2, T, N, D, L, ddxr, zmp_switch);
 %     [G0,E0,w0] = QP_constraints_basic(cur_state, A, B, h2, T, N, D, L, ddxr);
 
+%     [u_tilt,fval] = quadprog(blkdiag(H, 0.15*eye(n*N,n*N)),[2*F'*x_tilt_current; zeros(n*N,1)],G0,w0+E0*x_tilt_current,[],[],[],[],[],options);  
     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,G0,w0+E0*x_tilt_current,[],[],[],[],[],options);  
 %     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,zeros(size(G0)),zeros(size(w0+E0*x_tilt_current)),[],[],[],[],[],options);  
 %     u_tilt = -inv(H)*F'*x_tilt_current;
