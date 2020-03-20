@@ -1,113 +1,93 @@
-
 %% plot
-%trajectory
-figure;
-plot(xr(1,:),xr(2,:),'r','LineWidth',2)
-hold on
-plot(x_state(1,:),x_state(2,:),'--b')
-title('trajectory')
-legend('reference','real')
-grid on
-
-%state & input
 figure;
 subplot(2,3,1)
-plot(t,v_ref,'b','LineWidth',2)
+plot(xr(1,:),xr(2,:),'r','LineWidth',2)
 hold on
-plot(t(1:end-N),u(1,:),'--k')
-plot(t,w_ref,'r','LineWidth',2)
-plot(t(1:end-N),u(2,:),'--k')
-legend('v ref','v real','w ref','w real')
-title('input')
+plot(x_state(1,:),x_state(2,:),'--b','LineWidth',2)
+title('trajectory')
+legend('reference','real','Location','Best')
 grid on
+xlabel('x')
+ylabel('y')
+axis([0 1.5 0 1.5])
+set(gca,'fontsize', 16);
 
-subplot(2,3,2)
-plot(t(1:end-N),dx_state(1,1:end),'b')
+subplot(2,3,4)
+plot(t(1:end-N),x_tilt_set(1,:),'b','LineWidth',2)
 hold on
-plot(t(1:end-N),dx_state(2,1:end),'r')
-plot(t(1:end-N),dx_state(3,1:end),'k')
-title('dstate')
-legend('x','y','theta')
-grid on
-
-subplot(2,3,3)
-plot(t(1:end-N),x_tilt_set(1,:),'b')
-hold on
-plot(t(1:end-N),x_tilt_set(2,:),'r')
-plot(t(1:end-N),x_tilt_set(3,:),'k')
-plot([t(1) t(end-N)], [0.01 0.01],'--b')
-plot([t(1) t(end-N)], [-0.01 -0.01],'--b')
-plot([t(1) t(end-N)], [0.01 0.01],'--r')
-plot([t(1) t(end-N)], [-0.01 -0.01],'--r')
+plot(t(1:end-N),x_tilt_set(2,:),'r','LineWidth',2)
+plot(t(1:end-N),x_tilt_set(3,:),'k','LineWidth',2)
+if switch_state == 1
+    plot([t(1) t(end-N)], [thr_state_plus(1) thr_state_plus(1)],'--b')
+    plot([t(1) t(end-N)], [thr_state_plus(1) thr_state_plus(1)],'--b')
+    plot([t(1) t(end-N)], [thr_state_plus(2) thr_state_plus(2)],'--r')
+    plot([t(1) t(end-N)], [thr_state_plus(2) thr_state_plus(2)],'--r')
+    plot([t(1) t(end-N)], [thr_state_plus(3) thr_state_plus(3)],'--k')
+    plot([t(1) t(end-N)], [thr_state_plus(3) thr_state_plus(3)],'--k')
+end
 title('x tilt')
 legend('x','y','theta')
 grid on
+xlabel('t(sec)')
+ylabel('x tilt')
+set(gca,'fontsize', 16);
 
-subplot(2,3,4)
-plot(t(1:end-N),u_tilt_set(1,:),'b')
+subplot(2,3,2)
+plot(t,v_ref,'k','LineWidth',2)
 hold on
-plot(t(1:end-N),u_tilt_set(2,:),'r')
-plot([t(1) t(end-N)], [0.1 0.1],'--b')
-plot([t(1) t(end-N)], [-0.1 -0.1],'--b')
-plot([t(1) t(end-N)], [0.1 0.1],'--r')
-plot([t(1) t(end-N)], [-0.1 -0.1],'--r')
+plot(t(1:end-N),u(1,:),'--b','LineWidth',2)
+plot(t,w_ref,'m','LineWidth',2)
+plot(t(1:end-N),u(2,:),'--r','LineWidth',2)
+legend('v ref','v real','w ref','w real')
+title('input')
+grid on
+xlabel('t(sec)')
+ylabel('u')
+set(gca,'fontsize', 16);
+
+subplot(2,3,5)
+plot(t(1:end-N),u_tilt_set(1,:),'b','LineWidth',2)
+hold on
+plot(t(1:end-N),u_tilt_set(2,:),'r','LineWidth',2)
+if switch_input == 1
+    plot([t(1) t(end-N)], [thr_input_plus(1) thr_input_plus(1)],'--b','LineWidth',2)
+    plot([t(1) t(end-N)], [thr_input_minus(1) thr_input_minus(1)],'--b','LineWidth',2)
+    plot([t(1) t(end-N)], [thr_input_plus(2) thr_input_plus(2)],'--r','LineWidth',2)
+    plot([t(1) t(end-N)], [thr_input_minus(2) thr_input_minus(2)],'--r','LineWidth',2)
+end
 title('u tilt')
 legend('v','w')
 grid on
+xlabel('t(sec)')
+ylabel('u tilt')
+set(gca,'fontsize', 16);
 
-subplot(2,3,5)
-plot(t(1:end-N),ddx_state(1,1:end),'b')
+subplot(2,3,3)
+plot(t(1:end-N),zmp(1,1:end),'b','LineWidth',2)
 hold on
-plot(t(1:end-N),ddx_state(2,1:end),'r')
-plot(t(1:end-N),ddx_state(3,1:end),'k')
-title('ddstate')
-legend('x','y','theta')
+plot(t(1:end-N),zmp(2,1:end),'r','LineWidth',2)
+plot([t(1) t(end-N)], [D/2 D/2],'--b','LineWidth',2)
+plot([t(1) t(end-N)], [-D/2 -D/2],'--b','LineWidth',2)
+plot([t(1) t(end-N)], [L/2 L/2],'--r','LineWidth',2)
+plot([t(1) t(end-N)], [-L/2 -L/2],'--r','LineWidth',2)
+title('zmp')
+legend('zmp x','zmp y')
 grid on
+xlabel('t(sec)')
+ylabel('zmp')
+set(gca,'fontsize', 16);
 
 subplot(2,3,6)
-plot(t(1:end-N),ddx_state(1,1:end)- ddxr(1,1:length(ddx_state)),'b')
+plot(t(1:end-N),zmp_tilt(1,1:end),'b','LineWidth',2)
 hold on
-plot(t(1:end-N),ddx_state(2,1:end)- ddxr(2,1:length(ddx_state)),'r')
-plot(t(1:end-N),ddx_state(3,1:end)- ddxr(3,1:length(ddx_state)),'k')
-title('ddstate tilt')
-legend('x','y','theta')
+plot(t(1:end-N),zmp_tilt(2,1:end),'r','LineWidth',2)
+plot(t(1:end-N), (-zmpr(1,:)+D/2),'--b','LineWidth',2)
+plot(t(1:end-N), (-zmpr(1,:)-D/2),'--b','LineWidth',2)
+plot(t(1:end-N), (-zmpr(2,:)+L/2),'--r','LineWidth',2)
+plot(t(1:end-N), (-zmpr(2,:)-L/2),'--r','LineWidth',2)
+title('zmp tilt')
+legend('zmp tilt x','zmp tilt y')
 grid on
-
-%zmp
-figure;
-subplot(2,2,1)
-% figure;
-plot(t(1:end-N),zmp(1,1:end),'b')
-hold on
-plot([t(1) t(end-N)], [D/2 D/2],'k')
-plot([t(1) t(end-N)], [-D/2 -D/2],'k')
-title('zmp x')
-grid on
-
-subplot(2,2,2)
-plot(t(1:end-N),zmp(2,1:end),'b')
-hold on
-plot([t(1) t(end-N)], [L/2 L/2],'k')
-plot([t(1) t(end-N)], [-L/2 -L/2],'k')
-title('zmp y')
-grid on
-
-subplot(2,2,3)
-plot(t(1:end-N),zmp_tilt(1,1:end),'b')
-hold on
-plot(t(1:end), (h2/g*ddxr(1,1:end)+D/2),'k')
-plot(t(1:end), (h2/g*ddxr(1,1:end)-D/2),'k')
-% plot(t(1:end-N), (-zmpr(1,:)+D/2),'k')
-% plot(t(1:end-N), (-zmpr(1,:)-D/2),'k')
-title('zmp tilt x')
-grid on
-
-subplot(2,2,4)
-plot(t(1:end-N),zmp_tilt(2,1:end),'b')
-hold on
-plot(t(1:end), (h2/g*ddxr(2,1:end)+L/2),'k')
-plot(t(1:end), (h2/g*ddxr(2,1:end)-L/2),'k')
-% plot(t(1:end-N), (-zmpr(2,:)+L/2),'k')
-% plot(t(1:end-N), (-zmpr(2,:)-L/2),'k')
-title('zmp tilt y')
-grid on
+xlabel('t(sec)')
+ylabel('zmp tilt')
+set(gca,'fontsize', 16);
