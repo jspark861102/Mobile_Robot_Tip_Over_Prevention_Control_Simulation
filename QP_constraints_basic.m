@@ -5,7 +5,9 @@ m = size(B,2);
 
 %% G0{2*m*N, m*N}  
 Au = [eye(2);-eye(2)];
-thr = [-0.1; 0.02; 0.2; 0.2];
+thrp = [-0.1; 0.01]; 
+thrm = [-0.2;-0.2 ];
+thr = [thrp;-thrm];
 
 G0_dummy = Au;
 for i = 2 : N    
