@@ -26,7 +26,7 @@ if switch_state == 1
     plot([t(1) t(end-N)], [thr_state_plus(3) thr_state_plus(3)],'--k')
 end
 title('x tilt')
-legend('x','y','theta')
+legend('x','y','theta','Location','Best')
 grid on
 xlabel('t(sec)')
 ylabel('x tilt')
@@ -38,7 +38,7 @@ hold on
 plot(t(1:end-N),u(1,:),'--b','LineWidth',2)
 plot(t,w_ref,'m','LineWidth',2)
 plot(t(1:end-N),u(2,:),'--r','LineWidth',2)
-legend('v ref','v real','w ref','w real')
+legend('v ref','v real','w ref','w real','Location','Best')
 title('input')
 grid on
 xlabel('t(sec)')
@@ -56,7 +56,7 @@ if switch_input == 1
     plot([t(1) t(end-N)], [thr_input_minus(2) thr_input_minus(2)],'--r','LineWidth',2)
 end
 title('u tilt')
-legend('v','w')
+legend('v','w','Location','Best')
 grid on
 xlabel('t(sec)')
 ylabel('u tilt')
@@ -71,7 +71,7 @@ plot([t(1) t(end-N)], [-D/2 -D/2],'--b','LineWidth',2)
 plot([t(1) t(end-N)], [L/2 L/2],'--r','LineWidth',2)
 plot([t(1) t(end-N)], [-L/2 -L/2],'--r','LineWidth',2)
 title('zmp')
-legend('zmp x','zmp y')
+legend('zmp x','zmp y','Location','Best')
 grid on
 xlabel('t(sec)')
 ylabel('zmp')
@@ -86,7 +86,7 @@ plot(t(1:end-N), (-zmpr(1,:)-D/2),'--b','LineWidth',2)
 plot(t(1:end-N), (-zmpr(2,:)+L/2),'--r','LineWidth',2)
 plot(t(1:end-N), (-zmpr(2,:)-L/2),'--r','LineWidth',2)
 title('zmp tilt')
-legend('zmp tilt x','zmp tilt y')
+legend('zmp tilt x','zmp tilt y','Location','Best')
 grid on
 xlabel('t(sec)')
 ylabel('zmp tilt')

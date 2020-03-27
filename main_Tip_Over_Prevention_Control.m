@@ -28,33 +28,13 @@ thr_state = [thr_state_plus; -thr_state_minus];
 
 %% system parameters
 %mass
-m1 = 17;
-m2 = 10;
-m = m1 + m2;
 g = 9.81;
-
-%wheel radius
-r = 0.1;
 %wheel base
 D = 0.3;
 %width
 L = 0.4;
-
-%z value from global origin to link1 mass center
-h1 = 0.20;
 %z value from global origin to link2 mass center
 h2 = 0.9;
-%z value from joint 0 to link1 mass center
-h0c1 = h1;
-%z value from joint 1 to link2 mass center
-h1c2 = 0.7;
-
-%x value from global origin to link2 mass center
-a = 0.09;
-%y value from global origin to link2 mass center
-b = 0.05;
-%moment of inertia
-I = 1/12*m1*(D^2 + L^2) + m2*(a^2+b^2); %m2�� lumped mass�� ����
 
 %% reference
 v_max = 0.3; %0.85;%1;
