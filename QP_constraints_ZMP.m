@@ -1,26 +1,16 @@
-%% QP constraints, ZMP constraints
-function [G0,E0,w0] = QP_constraints_ZMP(cur_state, ddxr, x_tilt_m1, N, A, B, h2, D, L, T, switch_zmp, switch_input, thr_input, switch_state, thr_state)
+%% QP constraints, PP constraints
+function [G0,E0,w0] = QP_constraints_PP(cur_state, xr, ddxr, x_tilt_current, x_tilt_m1, N, A, B, h2, D, L, T, switch_Pp, switch_input, thr_input, switch_state, thr_state,mu)
 n = size(A,1);
 m = size(B,2);
 
-%% ZMP matrix
+%% PP matrix
 h = h2*1.0;
 g = 9.81;
-
-%ZMP = x-h/g*ddx --> -h/g*ddx
-Z = [(2*h)/(g*T^2) 0               0;
-     0             (2*h)/(g*T^2)   0;
-     0             0               0];
-Zm = [-h/(g*T^2)  0           0;
-      0          -h/(g*T^2)   0;
-      0           0           0];
-  
-G = [h/(g*T^2) 0         0;
-     0         h/(g*T^2) 0;
-     0         0         0];
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% backward finite difference for zmp %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if switch_zmp == 1
+P = 1/T^2*[1 0 0;
+           0 1 0;
+           0 0 0];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% backward finite difference for Pp %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if switch_Pp == 1
     %% G0{2*n*N, m*N}  
     for b_hat_num = 1 : N    
         %in writing Bi(k+j), in code Bj(k+i), 
@@ -31,13 +21,13 @@ if switch_zmp == 1
     for i = 1 : N 
         for j = 1 : N        
             if i-j == 0 %diagonal
-                G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = eval(['Zm*B' num2str(i) '(:,:,' num2str(j) ');']);
+                G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = eval(['P*B' num2str(i) '(:,:,' num2str(j) ');']);
             elseif i-j == 1 %one lower than diagonal 
-                G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = eval(['Zm*B' num2str(i) '(:,:,' num2str(j) ') - G*(-2*B' num2str(i-1) '(:,:,' num2str(j) '));']);
+                G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = eval(['P*B' num2str(i) '(:,:,' num2str(j) ') + P*(-2*B' num2str(i-1) '(:,:,' num2str(j) '));']);
             elseif i-j < 0 %upper diagonal is 0
                 G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = 0;
             else %lower diagonal
-                G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = eval(['Zm*B' num2str(i) '(:,:,' num2str(j) ') - G*(-2*B' num2str(i-1) '(:,:,' num2str(j) ') + B' num2str(i-2) '(:,:,' num2str(j) '));']);                            
+                G01((i-1)*n+1 : i*n, (j-1)*m+1 : j*m) = eval(['P*B' num2str(i) '(:,:,' num2str(j) ') + P*(-2*B' num2str(i-1) '(:,:,' num2str(j) ') + B' num2str(i-2) '(:,:,' num2str(j) '));']);                            
             end
         end
     end
@@ -47,28 +37,35 @@ if switch_zmp == 1
     E01 = zeros(n*N,n);
     for i = 1 : N
         if i == 1
-            E01((i-1)*n+1 : i*n,:) = eval(['Zm*A_hat(A,cur_state,cur_state+' num2str(i) ') - G*(-2*eye(3));']);
+            E01((i-1)*n+1 : i*n,:) = eval(['P*A_hat(A,cur_state,cur_state+' num2str(i) ') + P*(-2*eye(n));']);
         elseif i == 2
-            E01((i-1)*n+1 : i*n,:) = eval(['Zm*A_hat(A,cur_state,cur_state+' num2str(i) ') - G*(-2*A_hat(A,cur_state,cur_state+' num2str(i-1) ') + eye(3));']);
+            E01((i-1)*n+1 : i*n,:) = eval(['P*A_hat(A,cur_state,cur_state+' num2str(i) ') + P*(-2*A_hat(A,cur_state,cur_state+' num2str(i-1) ') + eye(n));']);
         else
-            E01((i-1)*n+1 : i*n,:) = eval(['Zm*A_hat(A,cur_state,cur_state+' num2str(i) ') - G*(-2*A_hat(A,cur_state,cur_state+' num2str(i-1) ') + A_hat(A,cur_state,cur_state+' num2str(i-2) '));']);
+            E01((i-1)*n+1 : i*n,:) = eval(['P*A_hat(A,cur_state,cur_state+' num2str(i) ') + P*(-2*A_hat(A,cur_state,cur_state+' num2str(i-1) ') + A_hat(A,cur_state,cur_state+' num2str(i-2) '));']);
         end
     end    
     E0 = [-E01;-(-E01)];
 
     %% W0{2*n*N,1}
     w0 = zeros(2*n*N,1);
+    
     w01 = zeros(n*N,1);
     w02 = zeros(n*N,1);
     for i = 1 : N
-        w01((i-1)*n+1 : i*n,:) = [[D/2;L/2;0] + h/g*[ddxr(1,cur_state+i); ddxr(2,cur_state+i); 0]]*1;
+        w01((i-1)*n+1 : i*n,:) = min([abs(cos(x_tilt_current(3)+xr(3,cur_state))) abs(sin(x_tilt_current(3)+xr(3,cur_state))) 0; 
+                                      abs(sin(x_tilt_current(3)+xr(3,cur_state))) abs(cos(x_tilt_current(3)+xr(3,cur_state))) 0;
+                                      0                      0                      1] * [D/2;L/2;0]*g/h, mu*g) - [ddxr(1,cur_state+i); ddxr(2,cur_state+i); 0];
     end
     for i = 1 : N
-        w02((i-1)*n+1 : i*n,:) = [[D/2;L/2;0] - h/g*[ddxr(1,cur_state+i); ddxr(2,cur_state+i); 0]]*1;
-    end
-    w01 = w01 +[G*x_tilt_m1; zeros(n*(N-1),1)];
-    w02 = w02 -[G*x_tilt_m1; zeros(n*(N-1),1)];
+        w02((i-1)*n+1 : i*n,:) = min([abs(cos(x_tilt_current(3)+xr(3,cur_state))) abs(sin(x_tilt_current(3)+xr(3,cur_state))) 0; 
+                                      abs(sin(x_tilt_current(3)+xr(3,cur_state))) abs(cos(x_tilt_current(3)+xr(3,cur_state))) 0;
+                                      0                      0                      1] * [D/2;L/2;0]*g/h, mu*g) + [ddxr(1,cur_state+i); ddxr(2,cur_state+i); 0];
+    end       
+    w01 = w01 -[P*x_tilt_m1; zeros(n*(N-1),1)];
+    w02 = w02 +[P*x_tilt_m1; zeros(n*(N-1),1)];    
     w0 = [w01;w02];
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+    
 else
     G0 = [];
     E0 = [];
@@ -79,7 +76,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% input limit %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if switch_input == 1
     %% input limit
-    Au = [eye(2);-eye(2)];
+    Au = [eye(m);-eye(m)];
     G1_dummy = Au;
     for i = 2 : N    
         G1 = blkdiag(G1_dummy,Au);
@@ -137,7 +134,7 @@ G0 = [G0; G1; G2];
 E0 = [E0; E1; E2];
 w0 = [w0; w1; w2];
 
-if switch_zmp == 0 && switch_input == 0 && switch_state == 0
+if switch_Pp == 0 && switch_input == 0 && switch_state == 0
     G0 = zeros(1,m*N);
     E0 = zeros(1,n);
     w0 = zeros(1,1);

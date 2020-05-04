@@ -33,10 +33,10 @@ ylabel('x tilt')
 set(gca,'fontsize', 16);
 
 subplot(2,3,2)
-plot(t,v_ref,'k','LineWidth',2)
+plot(t,ur(1,:),'k','LineWidth',2)
 hold on
 plot(t(1:end-N),u(1,:),'--b','LineWidth',2)
-plot(t,w_ref,'m','LineWidth',2)
+plot(t,ur(2,:),'m','LineWidth',2)
 plot(t(1:end-N),u(2,:),'--r','LineWidth',2)
 legend('v ref','v real','w ref','w real','Location','Best')
 title('input')
