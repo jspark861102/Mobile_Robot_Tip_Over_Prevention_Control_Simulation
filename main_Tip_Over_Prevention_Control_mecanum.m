@@ -104,7 +104,14 @@ for k = 1 : length(t)-N
     [G0,E0,w0] = QP_constraints_ZMP(cur_state, xr, ddxr, x_tilt_current, x_tilt_m1, N, A, B, h2, D, L, T, switch_zmp, switch_input, thr_input, switch_state, thr_state, mu);
     
     %% QP
-    [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,G0,w0+E0*x_tilt_current,[],[],[],[],[],options);  
+%     tic
+%     [u_tilt,fval] = quadprog(H,2*F'*x_tilt_current,G0,w0+E0*x_tilt_current,[],[],[],[],[],options);  
+%     toc
+    
+%     tic
+    [u_tilt,fval] = qpOASES(H, 2*F'*x_tilt_current, G0, [], [], [], w0+E0*x_tilt_current);
+    k
+%     toc
     
     %% Simulation
     u_tilt_set(:,k) = u_tilt;

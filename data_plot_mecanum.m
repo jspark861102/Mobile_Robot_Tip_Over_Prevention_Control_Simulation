@@ -75,6 +75,7 @@ grid on
 xlabel('t(sec)')
 ylabel('u tilt')
 set(gca,'fontsize', 16);
+ylim([-2.5 2.5])
 
 figure;
 plot(t(1:end-N),ddx_state(1,1:end),'b','LineWidth',2)
@@ -92,5 +93,5 @@ title('constraint')
 legend('ddx','ddy','zmpx constraint','zmpy constraint','slip constraint','Location','Best')
 grid on
 xlabel('t(sec)')
-ylabel('zmp')
+% ylabel('zmp')
 set(gca,'fontsize', 16);
